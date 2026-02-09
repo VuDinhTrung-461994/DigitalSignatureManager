@@ -4,16 +4,16 @@
   "description": "",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "prisma generate"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
-    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25.2.0",
     "@types/react": "^19.2.10",
     "autoprefixer": "^10.4.24",
@@ -23,10 +23,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.2",
     "@prisma/client": "^5.22.0",
-    "@vercel/postgres": "^0.10.0",
-    "better-sqlite3": "^12.6.2",
     "framer-motion": "^12.31.0",
     "next": "^16.1.6",
     "prisma": "^5.22.0",
