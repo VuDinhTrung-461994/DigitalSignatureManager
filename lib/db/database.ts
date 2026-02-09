@@ -1,10 +1,12 @@
 import { neon } from '@neondatabase/serverless';
 
 // Get database connection string from environment
-const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+// Vercel Postgres uses POSTGRES_URL, but we also support DATABASE_URL for flexibility
+const DATABASE_URL = process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING;
 
 if (!DATABASE_URL) {
-    console.warn('[DB] WARNING: DATABASE_URL not set. Database operations will fail.');
+    console.warn('[DB] WARNING: No database URL found. Please set POSTGRES_URL or DATABASE_URL environment variable.');
+    console.warn('[DB] Available env vars:', Object.keys(process.env).filter(k => k.includes('POSTGRES') || k.includes('DATABASE')));
 }
 
 // Create SQL client
