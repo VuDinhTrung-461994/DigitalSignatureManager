@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     console.log(`[API] POST ${url.pathname}`);
     
     try {
-        // Initialize schema first
+        // Initialize schema first (Prisma handles this)
         await initSchema();
         
         // Check if data exists

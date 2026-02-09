@@ -1,0 +1,40 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("POSTGRES_URL") // Vercel Postgres sử dụng POSTGRES_URL
+}
+
+model DonVi {
+  id         String   @id
+  ten        String
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  users      User[]
+}
+
+model Token {
+  token_id      String   @id
+  ma_thiet_bi   String
+  mat_khau      String
+  ngay_hieu_luc DateTime
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+  users         User[]
+}
+
+model User {
+  user_id    String   @id
+  ten        String
+  so_cccd    Int
+  don_vi_id  String?
+  token_id   String?
+  uy_quyen   String?
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+  
+  don_vi     DonVi?   @relation(fields: [don_vi_id], references: [id])
+  token      Token?   @relation(fields: [token_id], references: [token_id])
+}
