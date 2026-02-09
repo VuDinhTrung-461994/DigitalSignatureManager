@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     console.log(`[API] ${request.method} ${url.pathname}`);
     
     try {
-        const donViList = DonViDB.getAll();
+        const donViList = await DonViDB.getAll();
         return successResponse(donViList);
     } catch (error) {
         console.error(`[API] Error in ${url.pathname}:`, error);
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
             return badRequestResponse('Missing required fields: id, ten');
         }
         
-        const result = DonViDB.create(body);
+        const result = await DonViDB.create(body);
         return successResponse(result, 'DonVi created successfully');
     } catch (error) {
         console.error(`[API] Error in ${url.pathname}:`, error);

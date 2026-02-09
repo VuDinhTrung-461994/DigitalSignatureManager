@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
     console.log(`[API] ${request.method} ${url.pathname}`);
     
     try {
-        const tokens = TokenDB.getAll();
+        const tokens = await TokenDB.getAll();
         return successResponse(tokens);
     } catch (error) {
         console.error(`[API] Error in ${url.pathname}:`, error);
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
             return badRequestResponse('Missing required fields');
         }
         
-        const result = TokenDB.create(body);
+        const result = await TokenDB.create(body);
         return successResponse(result, 'Token created successfully');
     } catch (error) {
         console.error(`[API] Error in ${url.pathname}:`, error);

@@ -11,7 +11,7 @@ export async function GET(
     console.log(`[API] ${request.method} ${url.pathname}`);
     
     try {
-        const user = UserDB.getById(id);
+        const user = await UserDB.getById(id);
         if (!user) {
             return notFoundResponse('User');
         }
@@ -32,7 +32,7 @@ export async function PUT(
     
     try {
         // Check if user exists
-        const existingUser = UserDB.getById(id);
+        const existingUser = await UserDB.getById(id);
         if (!existingUser) {
             return notFoundResponse('User');
         }
@@ -47,7 +47,7 @@ export async function PUT(
             return badRequestResponse('No fields provided to update');
         }
         
-        const result = UserDB.update(id, updates);
+        const result = await UserDB.update(id, updates);
         
         if (result === null) {
             return badRequestResponse('No valid fields to update');
@@ -70,13 +70,13 @@ export async function DELETE(
     
     try {
         // Check if user exists
-        const existingUser = UserDB.getById(id);
+        const existingUser = await UserDB.getById(id);
         if (!existingUser) {
             return notFoundResponse('User');
         }
         
-        const result = UserDB.delete(id);
-        return successResponse(result, 'User deleted successfully');
+        await UserDB.delete(id);
+        return successResponse({ deleted: true }, 'User deleted successfully');
     } catch (error) {
         console.error(`[API] Error in ${url.pathname}:`, error);
         return errorResponse(String(error));

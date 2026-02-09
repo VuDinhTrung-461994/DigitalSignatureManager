@@ -1,4 +1,4 @@
-import { DonViDB, TokenDB, UserDB } from '@/lib/db/database';
+import { DonViDB, TokenDB, UserDB, initSchema } from '@/lib/db/database';
 import { successResponse, errorResponse } from '@/lib/api/response';
 
 const sampleDonVi = [
@@ -46,16 +46,19 @@ export async function POST(request: Request) {
     console.log(`[API] POST ${url.pathname}`);
     
     try {
+        // Initialize schema first
+        await initSchema();
+        
         // Check if data exists
-        const existingDonVi = DonViDB.getAll();
-        if (existingDonVi.length > 0) {
+        const existingDonVi = await DonViDB.getAll();
+        if (existingDonVi && existingDonVi.length > 0) {
             return successResponse({ initialized: false }, 'Database already initialized');
         }
         
         // Insert sample data
-        for (const dv of sampleDonVi) DonViDB.create(dv);
-        for (const token of sampleTokens) TokenDB.create(token);
-        for (const user of sampleUsers) UserDB.create(user);
+        for (const dv of sampleDonVi) await DonViDB.create(dv);
+        for (const token of sampleTokens) await TokenDB.create(token);
+        for (const user of sampleUsers) await UserDB.create(user);
         
         return successResponse({
             donVi: sampleDonVi.length,

@@ -1,98 +1,138 @@
-# Modern Login Page - Next.js
+# Digital Signature Manager - PostgreSQL Edition
 
-Trang đăng nhập hiện đại với giao diện đẹp và animations mượt mà sử dụng Next.js, Tailwind CSS và Framer Motion.
+## 🚀 Triển khai trên Vercel
 
-## Tính năng
+### Bước 1: Chuẩn bị Database trên Vercel
 
-- Giao diện hiện đại với gradient background
-- Animations mượt mà với Framer Motion
-- Responsive design
-- Form validation
-- Show/Hide password
-- Social login buttons (Google, Facebook)
-- Dark mode support
-- TypeScript support
+1. Truy cập [Vercel Dashboard](https://vercel.com/dashboard)
+2. Chọn project của bạn
+3. Vào tab **Storage**
+4. Click **Connect Store** → Chọn **Postgres**
+5. Chọn region gần bạn nhất (khuyến nghị: Singapore cho VN)
+6. Click **Create & Connect**
 
-## Công nghệ sử dụng
+### Bước 2: Environment Variables tự động
 
-- **Next.js 16** - React framework
-- **TypeScript** - Type safety
-- **Tailwind CSS 4** - Styling
-- **Framer Motion** - Animations
-- **React 19** - UI library
+Sau khi connect, Vercel sẽ tự động thêm các biến môi trường:
+- `POSTGRES_URL`
+- `POSTGRES_PRISMA_URL`
+- `POSTGRES_URL_NON_POOLING`
+- `POSTGRES_USER`
+- `POSTGRES_HOST`
+- `POSTGRES_PASSWORD`
+- `POSTGRES_DATABASE`
 
-## Cài đặt
+**Không cần thêm thủ công!**
+
+### Bước 3: Deploy lên GitHub
 
 ```bash
-# Di chuyển vào thư mục project
-cd login-app
-
-# Cài đặt dependencies (nếu chưa cài)
-npm install
-
-# Chạy development server
-npm run dev
+# Commit code
+git add .
+git commit -m "Chuyển sang PostgreSQL cho Vercel"
+git push origin main
 ```
 
-Mở [http://localhost:3000](http://localhost:3000) để xem kết quả.
+Vercel sẽ tự động deploy khi bạn push lên GitHub.
 
-## Scripts
+### Bước 4: Khởi tạo Database
 
-- `npm run dev` - Chạy development server
-- `npm run build` - Build production
-- `npm run start` - Chạy production server
-- `npm run lint` - Chạy ESLint
-
-## Cấu trúc project
-
+Sau khi deploy thành công, truy cập:
 ```
-login-app/
-├── app/
-│   ├── globals.css      # Global styles
-│   ├── layout.tsx       # Root layout
-│   └── page.tsx         # Login page
-├── public/              # Static files
-├── next.config.js       # Next.js config
-├── tailwind.config.js   # Tailwind CSS config
-├── tsconfig.json        # TypeScript config
-└── package.json         # Dependencies
+https://your-project.vercel.app/api/init-db
 ```
 
-## Tính năng chính
-
-### Animations
-- Animated background với gradient circles
-- Smooth transitions cho form inputs
-- Hover effects cho buttons
-- Loading animation khi submit
-
-### Form Features
-- Email validation
-- Password show/hide toggle
-- Remember me checkbox
-- Forgot password link
-- Loading state
-
-### Responsive Design
-- Mobile-friendly
-- Tablet-optimized
-- Desktop-enhanced
-
-## Customization
-
-### Thay đổi màu sắc
-Chỉnh sửa gradient trong `app/page.tsx`:
-```tsx
-className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 via-pink-500 to-orange-400"
+Hoặc dùng cURL:
+```bash
+curl -X POST https://your-project.vercel.app/api/init-db
 ```
 
-### Thay đổi animations
-Chỉnh sửa Framer Motion config trong `app/page.tsx`:
-```tsx
-animate={{ opacity: 1, y: 0 }}
-transition={{ duration: 0.5 }}
-```
+## 🔧 Cấu trúc Project
 
-## License
+### Dependencies
+- `@neondatabase/serverless` - PostgreSQL client
+- `next` - Next.js framework
+- `framer-motion` - Animation
+- `tailwindcss` - Styling
+
+### Database Schema
+
+**DonVi (Đơn vị)**
+- `id` (TEXT, PK)
+- `ten` (TEXT)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+
+**Token (Thiết bị)**
+- `token_id` (TEXT, PK)
+- `ma_thiet_bi` (TEXT)
+- `mat_khau` (TEXT)
+- `ngay_hieu_luc` (TIMESTAMP)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+
+**User (Ngườidùng)**
+- `user_id` (TEXT, PK)
+- `ten` (TEXT)
+- `so_cccd` (INTEGER)
+- `don_vi_id` (TEXT, FK)
+- `token_id` (TEXT, FK)
+- `uy_quyen` (TEXT)
+- `created_at` (TIMESTAMP)
+- `updated_at` (TIMESTAMP)
+
+## 🛠️ API Endpoints
+
+### Users
+- `GET /api/users` - Lấy danh sách users
+- `POST /api/users` - Tạo user mới
+- `GET /api/users/[id]` - Lấy chi tiết user
+- `PUT /api/users/[id]` - Cập nhật user
+- `DELETE /api/users/[id]` - Xóa user
+
+### DonVi
+- `GET /api/donvi` - Lấy danh sách đơn vị
+- `POST /api/donvi` - Tạo đơn vị mới
+
+### Tokens
+- `GET /api/tokens` - Lấy danh sách tokens
+- `POST /api/tokens` - Tạo token mới
+
+### Initialize
+- `POST /api/init-db` - Khởi tạo database với sample data
+
+## 📁 Pages
+
+- `/` - Trang chủ
+- `/devices` - Quản lý thiết bị chữ ký số (chính)
+- `/db-test` - Trang test database
+
+## 🎨 Tính năng UI
+
+- Dark theme với gradient background
+- Glassmorphism effects
+- Smooth animations (Framer Motion)
+- Hover effects trên tất cả elements
+- Real-time search
+- Responsive design
+
+## 🔒 Bảo mật
+
+- Mật khẩu được blur trong UI
+- Environment variables cho database connection
+- SQL injection protection qua parameterized queries
+
+## 🐛 Troubleshooting
+
+### Lỗi "Database not configured"
+Đảm bảo đã connect Postgres storage trong Vercel Dashboard.
+
+### Lỗi "Unable to open database file"
+Đây là lỗi SQLite cũ. Đã fix bằng cách chuyển sang PostgreSQL.
+
+### Không thể tạo tables
+Truy cập `/api/init-db` để tự động tạo schema.
+
+## 📝 License
 
 MIT

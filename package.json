@@ -23,6 +23,8 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "@vercel/postgres": "^0.10.0",
     "better-sqlite3": "^12.6.2",
     "framer-motion": "^12.31.0",
     "next": "^16.1.6",
