@@ -1,15 +1,38 @@
-import { neon } from '@neondatabase/serverless';
+import { neon, neonConfig } from '@neondatabase/serverless';
+
+// Configure neon
+neonConfig.fetchConnectionCache = true;
 
 // Get database connection string from environment
-// Vercel Postgres uses POSTGRES_URL
-const DATABASE_URL = process.env.POSTGRES_URL || process.env.DATABASE_URL || process.env.POSTGRES_URL_NON_POOLING;
+// Thứ tự ưu tiên:
+// 1. POSTGRES_URL (Vercel Postgres - pooled)
+// 2. DATABASE_URL (Generic)
+// 3. POSTGRES_URL_NON_POOLING (Direct connection)
+const DATABASE_URL = process.env.POSTGRES_URL || 
+                     process.env.DATABASE_URL || 
+                     process.env.POSTGRES_URL_NON_POOLING;
 
 // Log để debug (chỉ log trong server-side)
 if (typeof window === 'undefined') {
-    console.log('[DB] Checking environment variables...');
+    console.log('[DB] ==========================================');
+    console.log('[DB] Database Connection Check');
+    console.log('[DB] ==========================================');
     console.log('[DB] POSTGRES_URL exists:', !!process.env.POSTGRES_URL);
     console.log('[DB] DATABASE_URL exists:', !!process.env.DATABASE_URL);
     console.log('[DB] POSTGRES_URL_NON_POOLING exists:', !!process.env.POSTGRES_URL_NON_POOLING);
+    console.log('[DB] DATABASE_URL selected:', !!DATABASE_URL);
+    
+    if (DATABASE_URL) {
+        // Parse URL để kiểm tra (không log password)
+        try {
+            const url = new URL(DATABASE_URL);
+            console.log('[DB] Host:', url.hostname);
+            console.log('[DB] Database:', url.pathname.slice(1));
+            console.log('[DB] User:', url.username);
+        } catch (e) {
+            console.error('[DB] Invalid URL format');
+        }
+    }
 }
 
 if (!DATABASE_URL) {
@@ -19,7 +42,16 @@ if (!DATABASE_URL) {
 }
 
 // Create SQL client
-const sql = DATABASE_URL ? neon(DATABASE_URL) : null;
+let sql: ReturnType<typeof neon> | null = null;
+
+if (DATABASE_URL) {
+    try {
+        sql = neon(DATABASE_URL);
+        console.log('[DB] Neon client created successfully');
+    } catch (error) {
+        console.error('[DB] Failed to create Neon client:', error);
+    }
+}
 
 // Models
 export interface DonVi {
@@ -57,9 +89,21 @@ export interface UserWithRelations extends User {
 // Helper to check if database is connected
 function checkDb() {
     if (!sql) {
-        throw new Error('Database not configured. Please set DATABASE_URL environment variable.');
+        throw new Error('Database not configured. Please set POSTGRES_URL environment variable.');
     }
     return sql;
+}
+
+// Test connection
+export async function testConnection() {
+    try {
+        const db = checkDb();
+        const result = await db`SELECT version()`;
+        return { success: true, version: result[0].version };
+    } catch (error: any) {
+        console.error('[DB] Connection test failed:', error.message);
+        return { success: false, error: error.message };
+    }
 }
 
 // Initialize schema - run this once
@@ -68,6 +112,13 @@ export async function initSchema() {
         const db = checkDb();
         
         console.log('[DB] Initializing PostgreSQL schema...');
+        
+        // Test connection trước
+        const testResult = await testConnection();
+        if (!testResult.success) {
+            throw new Error(`Cannot connect to database: ${testResult.error}`);
+        }
+        console.log('[DB] Database connected:', testResult.version);
         
         // Create tables
         await db`
