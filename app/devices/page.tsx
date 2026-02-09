@@ -1,34 +1,79 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Device {
-  id: string
-  name: string
-  department: string
-  deviceName: string
-  devicePassword: string
-  idCardImage: string | null
+  id: string;
+  name: string;
+  department: string;
+  deviceName: string;
+  devicePassword: string;
+  idCardImage: string | null;
+  createdAt?: string;
+  updatedAt?: string;
   replacementPerson?: {
-    name: string
-    idCardNumber: string
-  }
+    name: string;
+    idCardNumber: string;
+  };
 }
 
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: {
+      type: "spring" as const,
+      stiffness: 100,
+      damping: 12
+    }
+  }
+};
+
+const cardHoverVariants = {
+  rest: {
+    scale: 1,
+    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)"
+  },
+  hover: {
+    scale: 1.02,
+    boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+    transition: {
+      type: "spring" as const,
+      stiffness: 400,
+      damping: 10
+    }
+  }
+};
+
+const glowVariants = {
+  rest: { opacity: 0 },
+  hover: {
+    opacity: 1,
+    transition: { duration: 0.3 }
+  }
+};
+
 export default function DevicesPage() {
-  const [devices, setDevices] = useState<Device[]>([
-    {
-      id: '1',
-      name: 'Nguyễn Văn A',
-      department: 'Phòng Kế toán',
-      deviceName: 'Token-001',
-      devicePassword: '******',
-      idCardImage: null,
-    },
-  ])
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [editingDevice, setEditingDevice] = useState<Device | null>(null)
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingDevice, setEditingDevice] = useState<Device | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     department: '',
@@ -38,13 +83,53 @@ export default function DevicesPage() {
     hasReplacement: false,
     replacementName: '',
     replacementIdCard: '',
-  })
-  const [searchTerm, setSearchTerm] = useState('')
-  const [showPassword, setShowPassword] = useState<string | null>(null)
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [showPassword, setShowPassword] = useState<string | null>(null);
+  const [hoveredRow, setHoveredRow] = useState<string | null>(null);
+
+  // Load data from API
+  useEffect(() => {
+    loadDevices();
+  }, []);
+
+  const loadDevices = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/users');
+      const data = await response.json();
+
+      if (data.success) {
+        const mappedDevices: Device[] = data.data.map((user: any) => ({
+          id: user.user_id,
+          name: user.ten,
+          department: user.don_vi?.ten || user.don_vi_id || 'Chưa có đơn vị',
+          deviceName: user.token?.ma_thiet_bi || user.token_id || 'Chưa có thiết bị',
+          devicePassword: user.token?.mat_khau || '',
+          idCardImage: null,
+          createdAt: user.created_at,
+          updatedAt: user.updated_at,
+          replacementPerson: user.uy_quyen === 'Admin' ? undefined : undefined,
+        }));
+        setDevices(mappedDevices);
+
+        // Extract unique departments
+        const uniqueDepts = [...new Set(mappedDevices.map(d => d.department))];
+        setDepartments(uniqueDepts);
+      } else {
+        setError(data.error || 'Failed to load data');
+      }
+    } catch (err) {
+      setError('Network error: ' + (err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleOpenModal = (device?: Device) => {
     if (device) {
-      setEditingDevice(device)
+      setEditingDevice(device);
       setFormData({
         name: device.name,
         department: device.department,
@@ -54,9 +139,9 @@ export default function DevicesPage() {
         hasReplacement: !!device.replacementPerson,
         replacementName: device.replacementPerson?.name || '',
         replacementIdCard: device.replacementPerson?.idCardNumber || '',
-      })
+      });
     } else {
-      setEditingDevice(null)
+      setEditingDevice(null);
       setFormData({
         name: '',
         department: '',
@@ -66,301 +151,654 @@ export default function DevicesPage() {
         hasReplacement: false,
         replacementName: '',
         replacementIdCard: '',
-      })
+      });
     }
-    setIsModalOpen(true)
-  }
+    setIsModalOpen(true);
+  };
 
   const handleCloseModal = () => {
-    setIsModalOpen(false)
-    setEditingDevice(null)
-  }
+    setIsModalOpen(false);
+    setEditingDevice(null);
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+    const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader()
+      const reader = new FileReader();
       reader.onloadend = () => {
-        setFormData({ ...formData, idCardImage: reader.result as string })
+        setFormData({ ...formData, idCardImage: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const donViResponse = await fetch('/api/donvi');
+      const donViData = await donViResponse.json();
+      let donViId = 'DV001';
+
+      if (!donViData.data || donViData.data.length === 0) {
+        await fetch('/api/donvi', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: 'DV001', ten: formData.department }),
+        });
+      } else {
+        const existingDept = donViData.data.find((d: any) => d.ten === formData.department);
+        if (existingDept) {
+          donViId = existingDept.id;
+        } else {
+          donViId = `DV${String(donViData.data.length + 1).padStart(3, '0')}`;
+          await fetch('/api/donvi', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: donViId, ten: formData.department }),
+          });
+        }
       }
-      reader.readAsDataURL(file)
-    }
-  }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    
-    const deviceData: Device = {
-      id: editingDevice?.id || Date.now().toString(),
-      name: formData.name,
-      department: formData.department,
-      deviceName: formData.deviceName,
-      devicePassword: formData.devicePassword,
-      idCardImage: formData.idCardImage,
-      ...(formData.hasReplacement && {
-        replacementPerson: {
-          name: formData.replacementName,
-          idCardNumber: formData.replacementIdCard,
-        },
-      }),
-    }
+      let tokenId = null;
+      if (formData.deviceName && formData.devicePassword) {
+        const tokenResponse = await fetch('/api/tokens');
+        const tokenData = await tokenResponse.json();
+        const tokenCount = tokenData.data?.length || 0;
+        tokenId = `TK${String(tokenCount + 1).padStart(3, '0')}`;
 
-    if (editingDevice) {
-      setDevices(devices.map(d => d.id === editingDevice.id ? deviceData : d))
-    } else {
-      setDevices([...devices, deviceData])
-    }
+        await fetch('/api/tokens', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token_id: tokenId,
+            ma_thiet_bi: formData.deviceName,
+            mat_khau: formData.devicePassword,
+            ngay_hieu_luc: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' '),
+          }),
+        });
+      }
 
-    handleCloseModal()
-  }
+      const userId = editingDevice?.id || `USER${Date.now()}`;
+      const userData = {
+        user_id: userId,
+        ten: formData.name,
+        so_cccd: parseInt(formData.replacementIdCard) || 0,
+        don_vi_id: donViId,
+        token_id: tokenId,
+        uy_quyen: formData.hasReplacement ? 'User' : 'Admin',
+      };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Bạn có chắc chắn muốn xóa thiết bị này?')) {
-      setDevices(devices.filter(d => d.id !== id))
+      const url = editingDevice ? `/api/users/${userId}` : '/api/users';
+      const method = editingDevice ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        handleCloseModal();
+        await loadDevices();
+      } else {
+        setError(data.error || 'Failed to save');
+      }
+    } catch (err) {
+      setError('Network error: ' + (err as Error).message);
+    } finally {
+      setLoading(false);
     }
-  }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa thiết bị này?')) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/users/${id}`, {
+        method: 'DELETE',
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        await loadDevices();
+      } else {
+        setError(data.error || 'Failed to delete');
+      }
+    } catch (err) {
+      setError('Network error: ' + (err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredDevices = devices.filter(device =>
     device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     device.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
     device.deviceName.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-6">
+      {/* Animated Background */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000" />
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-pink-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000" />
+      </div>
+
+      <div className="max-w-7xl mx-auto relative z-10">
+        {/* Error Message */}
+        <AnimatePresence>
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: -50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -50, scale: 0.9 }}
+              className="mb-6 p-4 bg-red-500/20 backdrop-blur-lg border border-red-500/30 text-red-200 rounded-2xl shadow-2xl"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <svg className="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="font-medium">{error}</span>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setError('')}
+                  className="text-red-400 hover:text-red-300 transition-colors"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Header */}
         <motion.div
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
           className="mb-8"
         >
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-8">
             <div>
-              <h1 className="text-4xl font-bold text-gray-800 mb-2">
+              <motion.h1
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
+                className="text-5xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 mb-2"
+              >
                 Quản lý Thiết bị Chữ ký số
-              </h1>
-              <p className="text-gray-600">Quản lý và theo dõi thiết bị chữ ký số</p>
+              </motion.h1>
+              <motion.p
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="text-blue-200/70 text-lg"
+              >
+                Quản lý và theo dõi thiết bị chữ ký số
+              </motion.p>
             </div>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => handleOpenModal()}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2"
-            >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              Thêm thiết bị
-            </motion.button>
+
+            <div className="flex gap-3">
+              <motion.button
+                whileHover={{ scale: 1.05, boxShadow: "0 0 20px rgba(59, 130, 246, 0.5)" }}
+                whileTap={{ scale: 0.95 }}
+                onClick={loadDevices}
+                disabled={loading}
+                className="group relative px-6 py-3 bg-white/10 backdrop-blur-lg border border-white/20 text-white rounded-2xl font-semibold overflow-hidden transition-all duration-300 disabled:opacity-50"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <span className="relative flex items-center gap-2">
+                  <motion.svg
+                    animate={loading ? { rotate: 360 } : {}}
+                    transition={{ duration: 1, repeat: loading ? Infinity : 0, ease: "linear" }}
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </motion.svg>
+                  Refresh
+                </span>
+              </motion.button>
+
+              <motion.button
+                whileHover={{ scale: 1.05, boxShadow: "0 0 30px rgba(139, 92, 246, 0.6)" }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleOpenModal()}
+                className="group relative px-6 py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white rounded-2xl font-semibold overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <motion.span
+                  className="relative flex items-center gap-2"
+                  whileHover={{ x: 3 }}
+                >
+                  <motion.svg
+                    whileHover={{ rotate: 90 }}
+                    transition={{ duration: 0.2 }}
+                    className="w-5 h-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </motion.svg>
+                  Thêm thiết bị
+                </motion.span>
+              </motion.button>
+            </div>
           </div>
 
           {/* Search Bar */}
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Tìm kiếm theo tên, đơn vị, thiết bị..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 pl-12 bg-white border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-            />
-            <svg className="w-5 h-5 text-gray-400 absolute left-4 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="relative group"
+          >
+            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200" />
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Tìm kiếm theo tên, đơn vị, thiết bị..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-6 py-4 pl-14 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all duration-300"
+              />
+              <motion.svg
+                whileHover={{ scale: 1.2, rotate: 15 }}
+                className="w-6 h-6 text-white/50 absolute left-5 top-1/2 -translate-y-1/2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </motion.svg>
+            </div>
+          </motion.div>
         </motion.div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {/* Stats Cards */}
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+          className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
+        >
+          {/* Total Devices */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-lg p-6 shadow-lg"
+            variants={itemVariants}
+            whileHover="hover"
+            initial="rest"
+            animate="rest"
+            className="relative group cursor-pointer"
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm mb-1">Tổng thiết bị</p>
-                <p className="text-3xl font-bold text-gray-800">{devices.length}</p>
+            <motion.div
+              variants={glowVariants}
+              className="absolute -inset-0.5 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl blur opacity-0 group-hover:opacity-75 transition duration-500"
+            />
+            <motion.div
+              variants={cardHoverVariants}
+              className="relative p-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl -mr-10 -mt-10" />
+              <div className="relative flex items-center justify-between">
+                <div>
+                  <p className="text-blue-200/70 text-sm mb-1 font-medium">Tổng thiết bị</p>
+                  <motion.p
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 200, delay: 0.5 }}
+                    className="text-4xl font-bold text-white"
+                  >
+                    {devices.length}
+                  </motion.p>
+                </div>
+                <motion.div
+                  whileHover={{ rotate: 360, scale: 1.1 }}
+                  transition={{ duration: 0.5 }}
+                  className="w-14 h-14 bg-gradient-to-br from-blue-400 to-cyan-400 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/30"
+                >
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                  </svg>
+                </motion.div>
               </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
-                </svg>
-              </div>
-            </div>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 1, delay: 0.8 }}
+                className="mt-4 h-1 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"
+              />
+            </motion.div>
           </motion.div>
 
+          {/* Active Devices */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white rounded-lg p-6 shadow-lg"
+            variants={itemVariants}
+            whileHover="hover"
+            initial="rest"
+            animate="rest"
+            className="relative group cursor-pointer"
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm mb-1">Đang sử dụng</p>
-                <p className="text-3xl font-bold text-green-600">{devices.length}</p>
+            <motion.div
+              variants={glowVariants}
+              className="absolute -inset-0.5 bg-gradient-to-r from-green-500 to-emerald-500 rounded-2xl blur opacity-0 group-hover:opacity-75 transition duration-500"
+            />
+            <motion.div
+              variants={cardHoverVariants}
+              className="relative p-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-green-500/20 rounded-full blur-3xl -mr-10 -mt-10" />
+              <div className="relative flex items-center justify-between">
+                <div>
+                  <p className="text-green-200/70 text-sm mb-1 font-medium">Đang sử dụng</p>
+                  <motion.p
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 200, delay: 0.6 }}
+                    className="text-4xl font-bold text-white"
+                  >
+                    {devices.length}
+                  </motion.p>
+                </div>
+                <motion.div
+                  whileHover={{ rotate: 360, scale: 1.1 }}
+                  transition={{ duration: 0.5 }}
+                  className="w-14 h-14 bg-gradient-to-br from-green-400 to-emerald-400 rounded-2xl flex items-center justify-center shadow-lg shadow-green-500/30"
+                >
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </motion.div>
               </div>
-              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 1, delay: 0.9 }}
+                className="mt-4 h-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"
+              />
+            </motion.div>
           </motion.div>
 
+          {/* Departments */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white rounded-lg p-6 shadow-lg"
+            variants={itemVariants}
+            whileHover="hover"
+            initial="rest"
+            animate="rest"
+            className="relative group cursor-pointer"
           >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-gray-600 text-sm mb-1">Có người thay</p>
-                <p className="text-3xl font-bold text-purple-600">
-                  {devices.filter(d => d.replacementPerson).length}
-                </p>
+            <motion.div
+              variants={glowVariants}
+              className="absolute -inset-0.5 bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl blur opacity-0 group-hover:opacity-75 transition duration-500"
+            />
+            <motion.div
+              variants={cardHoverVariants}
+              className="relative p-6 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/20 rounded-full blur-3xl -mr-10 -mt-10" />
+              <div className="relative flex items-center justify-between">
+                <div>
+                  <p className="text-purple-200/70 text-sm mb-1 font-medium">Tổng đơn vị</p>
+                  <motion.p
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: "spring", stiffness: 200, delay: 0.7 }}
+                    className="text-4xl font-bold text-white"
+                  >
+                    {departments.length}
+                  </motion.p>
+                </div>
+                <motion.div
+                  whileHover={{ rotate: 360, scale: 1.1 }}
+                  transition={{ duration: 0.5 }}
+                  className="w-14 h-14 bg-gradient-to-br from-purple-400 to-pink-400 rounded-2xl flex items-center justify-center shadow-lg shadow-purple-500/30"
+                >
+                  <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                </motion.div>
               </div>
-              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
-                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                </svg>
-              </div>
-            </div>
+              <motion.div
+                initial={{ width: 0 }}
+                animate={{ width: "100%" }}
+                transition={{ duration: 1, delay: 1 }}
+                className="mt-4 h-1 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"
+              />
+            </motion.div>
           </motion.div>
-        </div>
+        </motion.div>
+
+        {/* Loading Skeleton */}
+        <AnimatePresence>
+          {loading && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="mb-6 p-4 bg-white/5 backdrop-blur-lg border border-white/10 rounded-2xl"
+            >
+              <div className="flex items-center gap-3">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  className="w-6 h-6 border-2 border-blue-400 border-t-transparent rounded-full"
+                />
+                <span className="text-blue-200">Đang tải dữ liệu...</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Devices Table */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-white rounded-lg shadow-lg overflow-hidden"
+          transition={{ delay: 0.6, duration: 0.6 }}
+          className="relative"
         >
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-                <tr>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Tên</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Đơn vị</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Thiết bị</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Mật khẩu</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">CCCD</th>
-                  <th className="px-6 py-4 text-left text-sm font-semibold">Người thay</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                <AnimatePresence>
-                  {filteredDevices.map((device, index) => (
-                    <motion.tr
-                      key={device.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="hover:bg-gray-50 transition-colors"
-                    >
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-indigo-600 rounded-full flex items-center justify-center text-white font-semibold">
-                            {device.name.charAt(0)}
+          <div className="absolute -inset-1 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-pink-600/20 rounded-3xl blur-xl" />
+          <div className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl overflow-hidden shadow-2xl">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gradient-to-r from-blue-600/80 via-purple-600/80 to-pink-600/80 text-white">
+                    <th className="px-6 py-5 text-left text-sm font-bold uppercase tracking-wider">Tên</th>
+                    <th className="px-6 py-5 text-left text-sm font-bold uppercase tracking-wider">Đơn vị</th>
+                    <th className="px-6 py-5 text-left text-sm font-bold uppercase tracking-wider">Thiết bị</th>
+                    <th className="px-6 py-5 text-left text-sm font-bold uppercase tracking-wider">Mật khẩu</th>
+                    <th className="px-6 py-5 text-left text-sm font-bold uppercase tracking-wider">CCCD</th>
+                    <th className="px-6 py-5 text-left text-sm font-bold uppercase tracking-wider">Nhận thay</th>
+                    <th className="px-6 py-5 text-left text-sm font-bold uppercase tracking-wider">Cập nhật</th>
+                    <th className="px-6 py-5 text-center text-sm font-bold uppercase tracking-wider">Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/10">
+                  <AnimatePresence mode="popLayout">
+                    {filteredDevices.map((device, index) => (
+                      <motion.tr
+                        key={device.id}
+                        layout
+                        initial={{ opacity: 0, x: -50 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 50 }}
+                        transition={{
+                          delay: index * 0.05,
+                          type: "spring",
+                          stiffness: 100,
+                          damping: 15
+                        }}
+                        onMouseEnter={() => setHoveredRow(device.id)}
+                        onMouseLeave={() => setHoveredRow(null)}
+                        className={`group transition-all duration-300 ${hoveredRow === device.id ? 'bg-white/10' : 'hover:bg-white/5'}`}
+                      >
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-4">
+                            <motion.div
+                              whileHover={{ scale: 1.2, rotate: 10 }}
+                              className="w-12 h-12 bg-gradient-to-br from-blue-400 via-purple-400 to-pink-400 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-purple-500/30"
+                            >
+                              {device.name.charAt(0)}
+                            </motion.div>
+                            <div>
+                              <span className="font-semibold text-white group-hover:text-blue-300 transition-colors">{device.name}</span>
+                              <p className="text-xs text-white/40">{device.id}</p>
+                            </div>
                           </div>
-                          <span className="font-medium text-gray-900">{device.name}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-gray-700">{device.department}</td>
-                      <td className="px-6 py-4">
-                        <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                          {device.deviceName}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-gray-700 font-mono">
-                            {showPassword === device.id ? device.devicePassword : '••••••••'}
-                          </span>
-                          <button
-                            onClick={() => setShowPassword(showPassword === device.id ? null : device.id)}
-                            className="text-gray-400 hover:text-gray-600"
+                        </td>
+                        <td className="px-6 py-4">
+                          <motion.span
+                            whileHover={{ scale: 1.05 }}
+                            className="inline-flex items-center px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm font-medium border border-blue-500/30"
                           >
-                            {showPassword === device.id ? (
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                              </svg>
-                            ) : (
-                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                              </svg>
-                            )}
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {device.idCardImage ? (
-                          <button className="text-blue-600 hover:text-blue-800 flex items-center gap-1">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            Xem
-                          </button>
-                        ) : (
-                          <span className="text-gray-400">Chưa có</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        {device.replacementPerson ? (
-                          <div className="text-sm">
-                            <p className="font-medium text-gray-900">{device.replacementPerson.name}</p>
-                            <p className="text-gray-500">{device.replacementPerson.idCardNumber}</p>
+                            {device.department}
+                          </motion.span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <motion.span
+                            whileHover={{ scale: 1.05 }}
+                            className="inline-flex items-center px-3 py-1 bg-purple-500/20 text-purple-300 rounded-full text-sm font-medium border border-purple-500/30"
+                          >
+                            {device.deviceName}
+                          </motion.span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-2">
+                            <motion.span
+                              initial={false}
+                              animate={{ filter: showPassword === device.id ? 'blur(0px)' : 'blur(4px)' }}
+                              className="text-white/80 font-mono bg-black/30 px-3 py-1 rounded-lg"
+                            >
+                              {device.devicePassword || '••••••••'}
+                            </motion.span>
+                            <motion.button
+                              whileHover={{ scale: 1.2 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => setShowPassword(showPassword === device.id ? null : device.id)}
+                              className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                            >
+                              {showPassword === device.id ? (
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                                </svg>
+                              ) : (
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                              )}
+                            </motion.button>
                           </div>
-                        ) : (
-                          <span className="text-gray-400">Không có</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleOpenModal(device)}
-                            className="text-blue-600 hover:text-blue-800 p-2 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Sửa"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                          </motion.button>
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleDelete(device.id)}
-                            className="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Xóa"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </motion.button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </AnimatePresence>
-              </tbody>
-            </table>
+                        </td>
+                        <td className="px-6 py-4">
+                          {device.idCardImage ? (
+                            <motion.button
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/20 text-green-300 rounded-lg text-sm font-medium border border-green-500/30 hover:bg-green-500/30 transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              Xem
+                            </motion.button>
+                          ) : (
+                            <span className="text-white/30">Chưa có</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {device.replacementPerson ? (
+                            <div className="text-sm">
+                              <p className="font-medium text-white">{device.replacementPerson.name}</p>
+                              <p className="text-white/50">{device.replacementPerson.idCardNumber}</p>
+                            </div>
+                          ) : (
+                            <span className="text-white/30">Không có</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          {device.updatedAt ? (
+                            <div className="text-sm">
+                              <p className="text-white">{new Date(device.updatedAt).toLocaleDateString('vi-VN')}</p>
+                              <p className="text-white/50 text-xs">{new Date(device.updatedAt).toLocaleTimeString('vi-VN')}</p>
+                            </div>
+                          ) : (
+                            <span className="text-white/30">-</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <motion.button
+                              whileHover={{ scale: 1.1, backgroundColor: "rgba(59, 130, 246, 0.3)" }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => handleOpenModal(device)}
+                              className="p-2 text-blue-400 hover:text-blue-300 rounded-xl transition-all"
+                              title="Sửa"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                            </motion.button>
+                            <motion.button
+                              whileHover={{ scale: 1.1, backgroundColor: "rgba(239, 68, 68, 0.3)" }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => handleDelete(device.id)}
+                              className="p-2 text-red-400 hover:text-red-300 rounded-xl transition-all"
+                              title="Xóa"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </motion.button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </AnimatePresence>
+                </tbody>
+              </table>
 
-            {filteredDevices.length === 0 && (
-              <div className="text-center py-12">
-                <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
-                </svg>
-                <p className="text-gray-500 text-lg">Không tìm thấy thiết bị nào</p>
-              </div>
-            )}
+              {filteredDevices.length === 0 && !loading && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-center py-16"
+                >
+                  <motion.div
+                    animate={{
+                      y: [0, -10, 0],
+                      rotate: [0, 5, -5, 0]
+                    }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: "easeInOut"
+                    }}
+                  >
+                    <svg className="w-24 h-24 text-white/20 mx-auto mb-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                    </svg>
+                  </motion.div>
+                  <p className="text-white/40 text-xl mb-2">Không tìm thấy thiết bị nào</p>
+                  <p className="text-white/30 text-sm">Nhấn &quot;Thêm thiết bị&quot; để tạo mới</p>
+                </motion.div>
+              )}
+            </div>
           </div>
         </motion.div>
       </div>
@@ -372,120 +810,158 @@ export default function DevicesPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
             onClick={handleCloseModal}
           >
             <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              initial={{ scale: 0.8, opacity: 0, y: 50 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              exit={{ scale: 0.8, opacity: 0, y: 50 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              className="bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
             >
-              <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4 flex items-center justify-between">
-                <h2 className="text-2xl font-bold">
+              <div className="sticky top-0 bg-gradient-to-r from-blue-600/90 via-purple-600/90 to-pink-600/90 backdrop-blur-lg text-white px-8 py-6 flex items-center justify-between rounded-t-3xl">
+                <motion.h2
+                  initial={{ x: -20, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  className="text-2xl font-bold"
+                >
                   {editingDevice ? 'Chỉnh sửa thiết bị' : 'Thêm thiết bị mới'}
-                </h2>
-                <button
+                </motion.h2>
+                <motion.button
+                  whileHover={{ scale: 1.1, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={handleCloseModal}
-                  className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                  className="p-2 hover:bg-white/20 rounded-xl transition-colors"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </button>
+                </motion.button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              <form onSubmit={handleSubmit} className="p-8 space-y-6">
                 {/* Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Họ và tên <span className="text-red-500">*</span>
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <label className="block text-sm font-medium text-blue-200 mb-2">
+                    Họ và tên <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="text"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all"
                     placeholder="Nguyễn Văn A"
                   />
-                </div>
+                </motion.div>
 
                 {/* Department */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Đơn vị công tác <span className="text-red-500">*</span>
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.15 }}
+                >
+                  <label className="block text-sm font-medium text-blue-200 mb-2">
+                    Đơn vị công tác <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="text"
                     required
                     value={formData.department}
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all"
                     placeholder="Phòng Kế toán"
                   />
-                </div>
+                </motion.div>
 
                 {/* Device Name */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tên thiết bị <span className="text-red-500">*</span>
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <label className="block text-sm font-medium text-blue-200 mb-2">
+                    Tên thiết bị <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="text"
                     required
                     value={formData.deviceName}
                     onChange={(e) => setFormData({ ...formData, deviceName: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all"
                     placeholder="Token-001"
                   />
-                </div>
+                </motion.div>
 
                 {/* Device Password */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Mật khẩu thiết bị <span className="text-red-500">*</span>
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.25 }}
+                >
+                  <label className="block text-sm font-medium text-blue-200 mb-2">
+                    Mật khẩu thiết bị <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="password"
                     required
                     value={formData.devicePassword}
                     onChange={(e) => setFormData({ ...formData, devicePassword: e.target.value })}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all"
                     placeholder="••••••••"
                   />
-                </div>
+                </motion.div>
 
                 {/* ID Card Image */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  <label className="block text-sm font-medium text-blue-200 mb-2">
                     Ảnh Căn cước công dân
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-blue-500 transition-colors">
+                  <div className="border-2 border-dashed border-white/20 rounded-xl p-6 hover:border-purple-500/50 transition-colors">
                     {formData.idCardImage ? (
-                      <div className="relative">
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="relative"
+                      >
                         <img
                           src={formData.idCardImage}
                           alt="CCCD"
-                          className="w-full h-48 object-cover rounded-lg"
+                          className="w-full h-48 object-cover rounded-xl"
                         />
-                        <button
+                        <motion.button
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
                           type="button"
                           onClick={() => setFormData({ ...formData, idCardImage: null })}
-                          className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-lg hover:bg-red-600"
+                          className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 shadow-lg"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
-                        </button>
-                      </div>
+                        </motion.button>
+                      </motion.div>
                     ) : (
                       <label className="cursor-pointer flex flex-col items-center">
-                        <svg className="w-12 h-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        <span className="text-sm text-gray-600">Click để tải ảnh lên</span>
+                        <motion.div
+                          whileHover={{ scale: 1.1, rotate: 5 }}
+                          className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-3"
+                        >
+                          <svg className="w-8 h-8 text-white/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          </svg>
+                        </motion.div>
+                        <span className="text-white/60">Click để tải ảnh lên</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -495,18 +971,23 @@ export default function DevicesPage() {
                       </label>
                     )}
                   </div>
-                </div>
+                </motion.div>
 
                 {/* Replacement Person */}
-                <div className="border-t pt-4">
-                  <label className="flex items-center gap-2 cursor-pointer mb-4">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.35 }}
+                  className="border-t border-white/10 pt-4"
+                >
+                  <label className="flex items-center gap-3 cursor-pointer mb-4">
                     <input
                       type="checkbox"
                       checked={formData.hasReplacement}
                       onChange={(e) => setFormData({ ...formData, hasReplacement: e.target.checked })}
-                      className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="w-5 h-5 rounded border-white/30 bg-white/10 text-purple-500 focus:ring-purple-500/50"
                     />
-                    <span className="text-sm font-medium text-gray-700">Có người nhận thiết bị thay</span>
+                    <span className="text-sm font-medium text-blue-200">Có ngườinhận thiết bị thay</span>
                   </label>
 
                   <AnimatePresence>
@@ -518,61 +999,80 @@ export default function DevicesPage() {
                         className="space-y-4 overflow-hidden"
                       >
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Tên người thay <span className="text-red-500">*</span>
+                          <label className="block text-sm font-medium text-blue-200 mb-2">
+                            Tên ngườithay <span className="text-red-400">*</span>
                           </label>
                           <input
                             type="text"
                             required={formData.hasReplacement}
                             value={formData.replacementName}
                             onChange={(e) => setFormData({ ...formData, replacementName: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all"
                             placeholder="Trần Thị B"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">
-                            Số CCCD người thay <span className="text-red-500">*</span>
+                          <label className="block text-sm font-medium text-blue-200 mb-2">
+                            Số CCCD ngườithay <span className="text-red-400">*</span>
                           </label>
                           <input
                             type="text"
                             required={formData.hasReplacement}
                             value={formData.replacementIdCard}
                             onChange={(e) => setFormData({ ...formData, replacementIdCard: e.target.value })}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all"
                             placeholder="001234567890"
                           />
                         </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
-                </div>
+                </motion.div>
 
                 {/* Buttons */}
-                <div className="flex gap-4 pt-4">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="flex gap-4 pt-4"
+                >
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
+                    whileHover={{ scale: 1.02, boxShadow: "0 0 30px rgba(139, 92, 246, 0.5)" }}
                     whileTap={{ scale: 0.98 }}
                     type="submit"
-                    className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all"
+                    disabled={loading}
+                    className="flex-1 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white py-4 rounded-xl font-semibold shadow-lg disabled:opacity-50"
                   >
-                    {editingDevice ? 'Cập nhật' : 'Thêm mới'}
+                    {loading ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <motion.div
+                          animate={{ rotate: 360 }}
+                          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                          className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
+                        />
+                        Đang lưu...
+                      </span>
+                    ) : (
+                      editingDevice ? 'Cập nhật' : 'Thêm mới'
+                    )}
                   </motion.button>
                   <motion.button
-                    whileHover={{ scale: 1.02 }}
+                    whileHover={{ scale: 1.02, backgroundColor: "rgba(255, 255, 255, 0.2)" }}
                     whileTap={{ scale: 0.98 }}
                     type="button"
                     onClick={handleCloseModal}
-                    className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-all"
+                    disabled={loading}
+                    className="flex-1 bg-white/10 text-white py-4 rounded-xl font-semibold border border-white/20 disabled:opacity-50"
                   >
                     Hủy
                   </motion.button>
-                </div>
+                </motion.div>
               </form>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
     </div>
-  )
+  );
 }
