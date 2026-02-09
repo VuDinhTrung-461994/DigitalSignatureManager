@@ -678,7 +678,7 @@ export default function DevicesPage() {
                           </motion.span>
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-between w-full">
                             <motion.span
                               initial={false}
                               animate={{ filter: showPassword === device.id ? 'blur(0px)' : 'blur(4px)' }}
@@ -690,7 +690,7 @@ export default function DevicesPage() {
                               whileHover={{ scale: 1.2 }}
                               whileTap={{ scale: 0.9 }}
                               onClick={() => setShowPassword(showPassword === device.id ? null : device.id)}
-                              className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                              className="p-2 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-all ml-2"
                             >
                               {showPassword === device.id ? (
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
