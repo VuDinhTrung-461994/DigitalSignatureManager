@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface Device {
   id: string;
   name: string;
+  so_cccd?: number;
   department: string;
   deviceName: string;
   devicePassword: string;
@@ -118,6 +119,7 @@ export default function DevicesPage() {
   const [editingDevice, setEditingDevice] = useState<Device | null>(null);
   const [formData, setFormData] = useState({
     name: '',
+    idCard: '', // Số CCCD của ngườinhanh thiết bị
     department: '',
     deviceName: '',
     devicePassword: '',
@@ -187,6 +189,7 @@ export default function DevicesPage() {
       setEditingDevice(device);
       setFormData({
         name: device.name,
+        idCard: device.so_cccd?.toString() || '', // Số CCCD từ device
         department: device.department,
         deviceName: device.deviceName,
         devicePassword: device.devicePassword,
@@ -199,6 +202,7 @@ export default function DevicesPage() {
       setEditingDevice(null);
       setFormData({
         name: '',
+        idCard: '',
         department: '',
         deviceName: '',
         devicePassword: '',
@@ -277,12 +281,12 @@ export default function DevicesPage() {
 
       setOcrResult(extractedInfo);
 
-      // Auto-fill form if data found
+      // Auto-fill form if data found - Fill vào thông tin ngườinhanh chính
       if (extractedInfo.name || extractedInfo.idNumber) {
         setFormData(prev => ({
           ...prev,
           name: extractedInfo.name || prev.name,
-          replacementIdCard: extractedInfo.idNumber || prev.replacementIdCard,
+          idCard: extractedInfo.idNumber || prev.idCard,
         }));
       }
     } catch (error) {
@@ -346,7 +350,7 @@ export default function DevicesPage() {
       const userData = {
         user_id: userId,
         ten: formData.name,
-        so_cccd: parseInt(formData.replacementIdCard) || 0,
+        so_cccd: parseInt(formData.idCard) || 0,
         don_vi_id: donViId,
         token_id: tokenId,
         uy_quyen: formData.hasReplacement ? 'User' : 'Admin',
@@ -1259,6 +1263,30 @@ export default function DevicesPage() {
                       ocrResult?.name ? 'border-green-500/50 bg-green-500/10' : 'border-white/20'
                     }`}
                     placeholder="Nguyễn Văn A"
+                  />
+                </motion.div>
+
+                {/* ID Card Number */}
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.12 }}
+                >
+                  <label className="block text-sm font-medium text-blue-200 mb-2">
+                    Số CCCD <span className="text-red-400">*</span>
+                    {ocrResult?.idNumber && (
+                      <span className="ml-2 text-xs text-green-400">✓ Tự động nhận diện</span>
+                    )}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.idCard}
+                    onChange={(e) => setFormData({ ...formData, idCard: e.target.value })}
+                    className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all ${
+                      ocrResult?.idNumber ? 'border-green-500/50 bg-green-500/10' : 'border-white/20'
+                    }`}
+                    placeholder="001204014664"
                   />
                 </motion.div>
 
