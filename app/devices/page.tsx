@@ -68,6 +68,47 @@ const glowVariants = {
   }
 };
 
+// Danh sách đơn vị phân cấp
+const DEPARTMENT_GROUPS = {
+  'ĐƠN VỊ CHUYÊN MÔN GIÚP VIỆC CHỦ TỊCH VIỆN': [
+    'BAN TỔ CHỨC - CÁN BỘ VÀ KIỂM TRA',
+    'BAN KẾ HOẠCH - TÀI CHÍNH',
+    'BAN HỢP TÁC QUỐC TẾ',
+    'BAN ỨNG DỤNG VÀ TRIỂN KHAI CÔNG NGHỆ',
+    'VĂN PHÒNG',
+    'VĂN PHÒNG ĐẠI DIỆN TẠI TP. HỒ CHÍ MINH (TRỰC THUỘC VĂN PHÒNG)'
+  ],
+  'VIỆN NGHIÊN CỨU': [
+    'VIỆN TOÁN HỌC',
+    'VIỆN VẬT LÝ',
+    'VIỆN HÓA HỌC',
+    'VIỆN CƠ HỌC',
+    'VIỆN SINH HỌC',
+    'VIỆN CÁC KHOA HỌC TRÁI ĐẤT',
+    'VIỆN HẢI DƯƠNG HỌC',
+    'VIỆN KHOA HỌC SỰ SỐNG',
+    'VIỆN KHOA HỌC VẬT LIỆU',
+    'VIỆN KHOA HỌC CÔNG NGHỆ NĂNG LƯỢNG VÀ MÔI TRƯỜNG',
+    'VIỆN CÔNG NGHỆ THÔNG TIN',
+    'VIỆN CÔNG NGHỆ TIÊN TIẾN',
+    'TRUNG TÂM VŨ TRỤ VIỆT NAM'
+  ],
+  'ĐƠN VỊ SỰ NGHIỆP': [
+    'TRUNG TÂM NGHIÊN CỨU VÀ PHÁT TRIỂN CÔNG NGHỆ CAO',
+    'TRUNG TÂM DỮ LIỆU VÀ THÔNG TIN KHOA HỌC',
+    'BẢO TÀNG THIÊN NHIÊN VIỆT NAM',
+    'NHÀ XUẤT BẢN KHOA HỌC TỰ NHIÊN VÀ CÔNG NGHỆ',
+    'HỌC VIỆN KHOA HỌC VÀ CÔNG NGHỆ',
+    'TRƯỜNG ĐẠI HỌC KHOA HỌC VÀ CÔNG NGHỆ HÀ NỘI'
+  ],
+  'ĐƠN VỊ TỰ TRANG TRẢI KINH PHÍ': [
+    'CÔNG TY TNHH MỘT THÀNH VIÊN ỨNG DỤNG CÔNG NGHỆ MỚI VÀ DU LỊCH'
+  ]
+};
+
+// Flatten danh sách cho dropdown
+const ALL_DEPARTMENTS = Object.values(DEPARTMENT_GROUPS).flat();
+
 export default function DevicesPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
@@ -588,8 +629,14 @@ export default function DevicesPage() {
                         className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
                       >
                         <option value="" className="bg-slate-800">Tất cả đơn vị</option>
-                        {departments.map((dept) => (
-                          <option key={dept} value={dept} className="bg-slate-800">{dept}</option>
+                        {Object.entries(DEPARTMENT_GROUPS).map(([group, units]) => (
+                          <optgroup key={group} label={group} className="bg-slate-800 text-blue-300 font-bold">
+                            {units.map((unit) => (
+                              <option key={unit} value={unit} className="bg-slate-800 text-white">
+                                {unit}
+                              </option>
+                            ))}
+                          </optgroup>
                         ))}
                       </select>
                     </div>
@@ -1144,7 +1191,7 @@ export default function DevicesPage() {
                   />
                 </motion.div>
 
-                {/* Department */}
+                {/* Department - Dropdown phân cấp */}
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -1153,14 +1200,24 @@ export default function DevicesPage() {
                   <label className="block text-sm font-medium text-blue-200 mb-2">
                     Đơn vị công tác <span className="text-red-400">*</span>
                   </label>
-                  <input
-                    type="text"
+                  <select
                     required
                     value={formData.department}
                     onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all"
-                    placeholder="Phòng Kế toán"
-                  />
+                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all appearance-none cursor-pointer"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1.5rem' }}
+                  >
+                    <option value="" className="bg-slate-800 text-white/50">-- Chọn đơn vị --</option>
+                    {Object.entries(DEPARTMENT_GROUPS).map(([group, units]) => (
+                      <optgroup key={group} label={group} className="bg-slate-800 text-blue-300 font-bold">
+                        {units.map((unit) => (
+                          <option key={unit} value={unit} className="bg-slate-800 text-white pl-4">
+                            {unit}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
                 </motion.div>
 
                 {/* Device Name */}
