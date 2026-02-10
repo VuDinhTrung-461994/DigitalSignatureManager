@@ -223,24 +223,6 @@ export default function DevicesPage() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [ocrResult, setOcrResult] = useState<{name?: string; idNumber?: string} | null>(null);
 
-  const extractInfoFromOCR = (text: string) => {
-    const result: {name?: string; idNumber?: string} = {};
-    
-    // Extract ID Number (Số / No.)
-    const idMatch = text.match(/Số\s*\/\s*No\.?:\s*(\d+)/i);
-    if (idMatch) {
-      result.idNumber = idMatch[1];
-    }
-    
-    // Extract Name (Họ và tên / Full name)
-    const nameMatch = text.match(/Họ và tên\s*\/\s*Full name:\s*([\w\sÀ-ỹ]+)(?=\n|$)/i);
-    if (nameMatch) {
-      result.name = nameMatch[1].trim();
-    }
-    
-    return result;
-  };
-
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -260,11 +242,9 @@ export default function DevicesPage() {
       const formDataOCR = new FormData();
       formDataOCR.append('file', file);
 
-      const response = await fetch('https://ocop-oct.digipro.com.vn/ocr/pdf_or_image', {
+      // Call our own API instead of external API (to avoid CORS)
+      const response = await fetch('/api/ocr', {
         method: 'POST',
-        headers: {
-          'accept': 'application/json',
-        },
         body: formDataOCR,
       });
 
@@ -273,10 +253,14 @@ export default function DevicesPage() {
       }
 
       const data = await response.json();
-      console.log('[OCR] Raw result:', data);
+      console.log('[OCR] API result:', data);
 
-      // Extract information
-      const extractedInfo = extractInfoFromOCR(data.text);
+      if (!data.success) {
+        throw new Error(data.error || 'OCR failed');
+      }
+
+      // Data is already extracted by server
+      const extractedInfo = data.data;
       console.log('[OCR] Extracted:', extractedInfo);
 
       setOcrResult(extractedInfo);
