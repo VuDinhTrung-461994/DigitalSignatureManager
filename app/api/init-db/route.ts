@@ -26,7 +26,7 @@ const sampleUsers = [
     {
         user_id: 'USER001',
         ten: 'Nguyễn Văn A',
-        so_cccd: 123456789,
+        so_cccd: '123456789',
         don_vi_id: 'DV001',
         token_id: 'TK001',
         uy_quyen: 'Admin'
@@ -34,7 +34,7 @@ const sampleUsers = [
     {
         user_id: 'USER002',
         ten: 'Trần Thị B',
-        so_cccd: 987654321,
+        so_cccd: '987654321',
         don_vi_id: 'DV002',
         token_id: 'TK002',
         uy_quyen: 'User'

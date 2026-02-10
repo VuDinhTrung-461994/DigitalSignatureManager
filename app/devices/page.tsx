@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 interface Device {
   id: string;
   name: string;
-  so_cccd?: number;
+  so_cccd?: string;
   department: string;
   deviceName: string;
   devicePassword: string;
@@ -161,12 +161,14 @@ export default function DevicesPage() {
         const mappedDevices: Device[] = data.data.map((user: any) => ({
           id: user.user_id,
           name: user.ten,
+          so_cccd: user.so_cccd,
           department: user.don_vi?.ten || user.don_vi_id || 'Chưa có đơn vị',
           deviceName: user.token?.ma_thiet_bi || user.token_id || 'Chưa có thiết bị',
           devicePassword: user.token?.mat_khau || '',
           idCardImage: null,
           createdAt: user.created_at,
           updatedAt: user.updated_at,
+          uy_quyen: user.uy_quyen,
           replacementPerson: user.uy_quyen === 'Admin' ? undefined : undefined,
         }));
         setDevices(mappedDevices);
@@ -1090,17 +1092,10 @@ export default function DevicesPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4">
-                          {device.idCardImage ? (
-                            <motion.button
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
-                              className="inline-flex items-center gap-2 px-3 py-1 bg-green-500/20 text-green-300 rounded-lg text-sm font-medium border border-green-500/30 hover:bg-green-500/30 transition-colors"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                              </svg>
-                              Xem
-                            </motion.button>
+                          {device.so_cccd ? (
+                            <span className="font-mono text-white/80 bg-black/30 px-3 py-1 rounded-lg">
+                              {device.so_cccd}
+                            </span>
                           ) : (
                             <span className="text-white/30">Chưa có</span>
                           )}

@@ -1,6 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, DonVi, Token, User } from '@prisma/client';
 
-// Prevent multiple instances of Prisma Client in development
+// PrismaClient is attached to the `global` object in development to prevent
+// exhausting your database connection limit.
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
@@ -9,33 +10,8 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// Export types from generated client
-export type DonVi = {
-  id: string;
-  ten: string;
-  created_at: Date;
-  updated_at: Date;
-};
-
-export type Token = {
-  token_id: string;
-  ma_thiet_bi: string;
-  mat_khau: string;
-  ngay_hieu_luc: Date;
-  created_at: Date;
-  updated_at: Date;
-};
-
-export type User = {
-  user_id: string;
-  ten: string;
-  so_cccd: number;
-  don_vi_id: string | null;
-  token_id: string | null;
-  uy_quyen: string | null;
-  created_at: Date;
-  updated_at: Date;
-};
+// Re-export types
+export type { DonVi, Token, User };
 
 export interface UserWithRelations extends User {
   don_vi?: DonVi;
@@ -99,14 +75,7 @@ export const TokenDB = {
 
 // User operations
 export const UserDB = {
-  create: async (data: {
-    user_id: string;
-    ten: string;
-    so_cccd: number;
-    don_vi_id?: string;
-    token_id?: string;
-    uy_quyen?: string;
-  }) => {
+  create: async (data: Parameters<typeof prisma.user.create>[0]['data']) => {
     return prisma.user.create({ data });
   },
   
