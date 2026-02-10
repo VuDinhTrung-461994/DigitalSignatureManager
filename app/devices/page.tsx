@@ -216,14 +216,80 @@ export default function DevicesPage() {
     setEditingDevice(null);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrResult, setOcrResult] = useState<{name?: string; idNumber?: string} | null>(null);
+
+  const extractInfoFromOCR = (text: string) => {
+    const result: {name?: string; idNumber?: string} = {};
+    
+    // Extract ID Number (Số / No.)
+    const idMatch = text.match(/Số\s*\/\s*No\.?:\s*(\d+)/i);
+    if (idMatch) {
+      result.idNumber = idMatch[1];
+    }
+    
+    // Extract Name (Họ và tên / Full name)
+    const nameMatch = text.match(/Họ và tên\s*\/\s*Full name:\s*([\w\sÀ-ỹ]+)(?=\n|$)/i);
+    if (nameMatch) {
+      result.name = nameMatch[1].trim();
+    }
+    
+    return result;
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData({ ...formData, idCardImage: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    // Show preview first
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData(prev => ({ ...prev, idCardImage: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+
+    // Call OCR API
+    setOcrLoading(true);
+    setOcrResult(null);
+    
+    try {
+      const formDataOCR = new FormData();
+      formDataOCR.append('file', file);
+
+      const response = await fetch('https://ocop-oct.digipro.com.vn/ocr/pdf_or_image', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+        },
+        body: formDataOCR,
+      });
+
+      if (!response.ok) {
+        throw new Error(`OCR API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[OCR] Raw result:', data);
+
+      // Extract information
+      const extractedInfo = extractInfoFromOCR(data.text);
+      console.log('[OCR] Extracted:', extractedInfo);
+
+      setOcrResult(extractedInfo);
+
+      // Auto-fill form if data found
+      if (extractedInfo.name || extractedInfo.idNumber) {
+        setFormData(prev => ({
+          ...prev,
+          name: extractedInfo.name || prev.name,
+          replacementIdCard: extractedInfo.idNumber || prev.replacementIdCard,
+        }));
+      }
+    } catch (error) {
+      console.error('[OCR] Error:', error);
+      setError('Không thể nhận diện ảnh CCCD. Vui lòng nhập thủ công.');
+    } finally {
+      setOcrLoading(false);
     }
   };
 
@@ -1180,13 +1246,18 @@ export default function DevicesPage() {
                 >
                   <label className="block text-sm font-medium text-blue-200 mb-2">
                     Họ và tên <span className="text-red-400">*</span>
+                    {ocrResult?.name && (
+                      <span className="ml-2 text-xs text-green-400">✓ Tự động nhận diện</span>
+                    )}
                   </label>
                   <input
                     type="text"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all"
+                    className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all ${
+                      ocrResult?.name ? 'border-green-500/50 bg-green-500/10' : 'border-white/20'
+                    }`}
                     placeholder="Nguyễn Văn A"
                   />
                 </motion.div>
@@ -1258,7 +1329,7 @@ export default function DevicesPage() {
                   />
                 </motion.div>
 
-                {/* ID Card Image */}
+                {/* ID Card Image with OCR */}
                 <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
@@ -1266,6 +1337,7 @@ export default function DevicesPage() {
                 >
                   <label className="block text-sm font-medium text-blue-200 mb-2">
                     Ảnh Căn cước công dân
+                    <span className="ml-2 text-xs text-purple-400">(Tự động nhận diện)</span>
                   </label>
                   <div className="border-2 border-dashed border-white/20 rounded-xl p-6 hover:border-purple-500/50 transition-colors">
                     {formData.idCardImage ? (
@@ -1283,13 +1355,35 @@ export default function DevicesPage() {
                           whileHover={{ scale: 1.1 }}
                           whileTap={{ scale: 0.9 }}
                           type="button"
-                          onClick={() => setFormData({ ...formData, idCardImage: null })}
+                          onClick={() => {
+                            setFormData({ ...formData, idCardImage: null });
+                            setOcrResult(null);
+                          }}
                           className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-lg hover:bg-red-600 shadow-lg"
                         >
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </motion.button>
+                        
+                        {/* OCR Status Badge */}
+                        {ocrLoading && (
+                          <div className="absolute bottom-2 left-2 bg-blue-500/90 text-white px-3 py-1 rounded-lg text-sm flex items-center gap-2">
+                            <motion.div
+                              animate={{ rotate: 360 }}
+                              transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                              className="w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+                            />
+                            Đang nhận diện...
+                          </div>
+                        )}
+                        {ocrResult && !ocrLoading && (
+                          <div className="absolute bottom-2 left-2 right-2 bg-green-500/90 text-white px-3 py-2 rounded-lg text-sm">
+                            <div className="font-semibold">✓ Nhận diện thành công:</div>
+                            {ocrResult.name && <div>Tên: {ocrResult.name}</div>}
+                            {ocrResult.idNumber && <div>CCCD: {ocrResult.idNumber}</div>}
+                          </div>
+                        )}
                       </motion.div>
                     ) : (
                       <label className="cursor-pointer flex flex-col items-center">
@@ -1302,6 +1396,7 @@ export default function DevicesPage() {
                           </svg>
                         </motion.div>
                         <span className="text-white/60">Click để tải ảnh lên</span>
+                        <span className="text-white/40 text-xs mt-1">Hệ thống sẽ tự động nhận diện thông tin</span>
                         <input
                           type="file"
                           accept="image/*"
@@ -1354,13 +1449,18 @@ export default function DevicesPage() {
                         <div>
                           <label className="block text-sm font-medium text-blue-200 mb-2">
                             Số CCCD ngườithay <span className="text-red-400">*</span>
+                            {ocrResult?.idNumber && (
+                              <span className="ml-2 text-xs text-green-400">✓ Tự động nhận diện</span>
+                            )}
                           </label>
                           <input
                             type="text"
                             required={formData.hasReplacement}
                             value={formData.replacementIdCard}
                             onChange={(e) => setFormData({ ...formData, replacementIdCard: e.target.value })}
-                            className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all"
+                            className={`w-full px-4 py-3 bg-white/10 border rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-transparent transition-all ${
+                              ocrResult?.idNumber ? 'border-green-500/50 bg-green-500/10' : 'border-white/20'
+                            }`}
                             placeholder="001234567890"
                           />
                         </div>
