@@ -1,7 +1,6 @@
-import { PrismaClient, DonVi, Token, User } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
-// PrismaClient is attached to the `global` object in development to prevent
-// exhausting your database connection limit.
+// Prevent multiple instances of Prisma Client in development
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
@@ -10,8 +9,33 @@ export const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma;
 
-// Export types
-export type { DonVi, Token, User };
+// Export types from generated client
+export type DonVi = {
+  id: string;
+  ten: string;
+  created_at: Date;
+  updated_at: Date;
+};
+
+export type Token = {
+  token_id: string;
+  ma_thiet_bi: string;
+  mat_khau: string;
+  ngay_hieu_luc: Date;
+  created_at: Date;
+  updated_at: Date;
+};
+
+export type User = {
+  user_id: string;
+  ten: string;
+  so_cccd: number;
+  don_vi_id: string | null;
+  token_id: string | null;
+  uy_quyen: string | null;
+  created_at: Date;
+  updated_at: Date;
+};
 
 export interface UserWithRelations extends User {
   don_vi?: DonVi;
@@ -24,11 +48,11 @@ export const DonViDB = {
     return prisma.donVi.create({ data });
   },
   
-  getAll: async () => {
+  getAll: async (): Promise<DonVi[]> => {
     return prisma.donVi.findMany();
   },
   
-  getById: async (id: string) => {
+  getById: async (id: string): Promise<DonVi | null> => {
     return prisma.donVi.findUnique({ where: { id } });
   },
   
@@ -60,11 +84,11 @@ export const TokenDB = {
     });
   },
   
-  getAll: async () => {
+  getAll: async (): Promise<Token[]> => {
     return prisma.token.findMany();
   },
   
-  getById: async (tokenId: string) => {
+  getById: async (tokenId: string): Promise<Token | null> => {
     return prisma.token.findUnique({ where: { token_id: tokenId } });
   },
   
@@ -86,7 +110,7 @@ export const UserDB = {
     return prisma.user.create({ data });
   },
   
-  getAll: async () => {
+  getAll: async (): Promise<User[]> => {
     return prisma.user.findMany();
   },
   
@@ -105,7 +129,7 @@ export const UserDB = {
     }));
   },
   
-  getById: async (userId: string) => {
+  getById: async (userId: string): Promise<User | null> => {
     return prisma.user.findUnique({ where: { user_id: userId } });
   },
   
@@ -137,8 +161,6 @@ export const UserDB = {
 // Initialize schema (Prisma handles this via migrations)
 export async function initSchema() {
   console.log('[DB] Prisma schema already defined in schema.prisma');
-  // Prisma automatically creates tables based on schema
-  // Run: npx prisma db push
   return true;
 }
 
