@@ -29,7 +29,7 @@ model Token {
 model User {
   user_id    String   @id
   ten        String
-  so_cccd    Int
+  so_cccd    String   // Changed from Int to String to support 12-digit CCCD
   don_vi_id  String?
   token_id   String?
   uy_quyen   String?

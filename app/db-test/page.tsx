@@ -90,7 +90,7 @@ export default function DatabaseTestPage() {
             const userData = {
                 user_id: newUser.user_id,
                 ten: newUser.ten,
-                so_cccd: parseInt(newUser.so_cccd),
+                so_cccd: newUser.so_cccd,
                 don_vi_id: 'DV001',
                 token_id: undefined,
                 uy_quyen: 'User'

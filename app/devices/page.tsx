@@ -334,7 +334,7 @@ export default function DevicesPage() {
       const userData = {
         user_id: userId,
         ten: formData.name,
-        so_cccd: parseInt(formData.idCard) || 0,
+        so_cccd: formData.idCard || '',
         don_vi_id: donViId,
         token_id: tokenId,
         uy_quyen: formData.hasReplacement ? 'User' : 'Admin',
