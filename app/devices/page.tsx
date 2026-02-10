@@ -12,6 +12,7 @@ interface Device {
   idCardImage: string | null;
   createdAt?: string;
   updatedAt?: string;
+  uy_quyen?: string;
   replacementPerson?: {
     name: string;
     idCardNumber: string;
@@ -87,6 +88,19 @@ export default function DevicesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showPassword, setShowPassword] = useState<string | null>(null);
   const [hoveredRow, setHoveredRow] = useState<string | null>(null);
+  
+  // Advanced filters
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    name: '',
+    department: '',
+    deviceName: '',
+    uyQuyen: '',
+    dateFrom: '',
+    dateTo: '',
+  });
+  const [sortBy, setSortBy] = useState<'name' | 'updatedAt' | 'department'>('updatedAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Load data from API
   useEffect(() => {
@@ -278,11 +292,62 @@ export default function DevicesPage() {
     }
   };
 
-  const filteredDevices = devices.filter(device =>
-    device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    device.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    device.deviceName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Advanced filtering logic
+  const filteredDevices = devices
+    .filter(device => {
+      // Search term filter
+      const matchesSearch = !searchTerm || 
+        device.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        device.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        device.deviceName.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Advanced filters
+      const matchesName = !filters.name || 
+        device.name.toLowerCase().includes(filters.name.toLowerCase());
+      
+      const matchesDepartment = !filters.department || 
+        device.department === filters.department;
+      
+      const matchesDevice = !filters.deviceName || 
+        device.deviceName.toLowerCase().includes(filters.deviceName.toLowerCase());
+      
+      const matchesUyQuyen = !filters.uyQuyen || 
+        device.uy_quyen === filters.uyQuyen;
+      
+      // Date range filter
+      let matchesDate = true;
+      if (device.updatedAt) {
+        const deviceDate = new Date(device.updatedAt);
+        if (filters.dateFrom) {
+          matchesDate = matchesDate && deviceDate >= new Date(filters.dateFrom);
+        }
+        if (filters.dateTo) {
+          matchesDate = matchesDate && deviceDate <= new Date(filters.dateTo);
+        }
+      }
+      
+      return matchesSearch && matchesName && matchesDepartment && matchesDevice && matchesUyQuyen && matchesDate;
+    })
+    .sort((a, b) => {
+      // Sorting logic
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'department':
+          comparison = a.department.localeCompare(b.department);
+          break;
+        case 'updatedAt':
+          const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+          const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+          comparison = dateA - dateB;
+          break;
+      }
+      
+      return sortOrder === 'asc' ? comparison : -comparison;
+    });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-6">
@@ -430,6 +495,187 @@ export default function DevicesPage() {
               </motion.svg>
             </div>
           </motion.div>
+
+          {/* Advanced Filters Toggle */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="mt-4 flex justify-between items-center"
+          >
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowFilters(!showFilters)}
+              className="flex items-center gap-2 text-blue-300 hover:text-blue-200 transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+              </svg>
+              Bộ lọc nâng cao
+              <motion.svg
+                animate={{ rotate: showFilters ? 180 : 0 }}
+                transition={{ duration: 0.3 }}
+                className="w-4 h-4"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </motion.svg>
+            </motion.button>
+
+            <div className="flex items-center gap-2">
+              <span className="text-white/60 text-sm">Sắp xếp:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="bg-white/10 border border-white/20 rounded-lg px-3 py-1 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+              >
+                <option value="updatedAt" className="bg-slate-800">Ngày cập nhật</option>
+                <option value="name" className="bg-slate-800">Tên</option>
+                <option value="department" className="bg-slate-800">Đơn vị</option>
+              </select>
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="p-2 text-white/60 hover:text-white bg-white/10 rounded-lg"
+              >
+                {sortOrder === 'asc' ? (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
+                  </svg>
+                )}
+              </motion.button>
+            </div>
+          </motion.div>
+
+          {/* Advanced Filters Panel */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3 }}
+                className="overflow-hidden"
+              >
+                <div className="mt-4 p-6 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* Name Filter */}
+                    <div>
+                      <label className="block text-sm text-blue-200 mb-2">Tên ngườidùng</label>
+                      <input
+                        type="text"
+                        placeholder="Lọc theo tên..."
+                        value={filters.name}
+                        onChange={(e) => setFilters({ ...filters, name: e.target.value })}
+                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                      />
+                    </div>
+
+                    {/* Department Filter */}
+                    <div>
+                      <label className="block text-sm text-blue-200 mb-2">Đơn vị</label>
+                      <select
+                        value={filters.department}
+                        onChange={(e) => setFilters({ ...filters, department: e.target.value })}
+                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                      >
+                        <option value="" className="bg-slate-800">Tất cả đơn vị</option>
+                        {departments.map((dept) => (
+                          <option key={dept} value={dept} className="bg-slate-800">{dept}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Device Filter */}
+                    <div>
+                      <label className="block text-sm text-blue-200 mb-2">Thiết bị</label>
+                      <input
+                        type="text"
+                        placeholder="Lọc theo thiết bị..."
+                        value={filters.deviceName}
+                        onChange={(e) => setFilters({ ...filters, deviceName: e.target.value })}
+                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                      />
+                    </div>
+
+                    {/* Uy Quyen Filter */}
+                    <div>
+                      <label className="block text-sm text-blue-200 mb-2">Uỷ quyền</label>
+                      <select
+                        value={filters.uyQuyen}
+                        onChange={(e) => setFilters({ ...filters, uyQuyen: e.target.value })}
+                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                      >
+                        <option value="" className="bg-slate-800">Tất cả</option>
+                        <option value="Admin" className="bg-slate-800">Admin</option>
+                        <option value="User" className="bg-slate-800">User</option>
+                      </select>
+                    </div>
+
+                    {/* Date From */}
+                    <div>
+                      <label className="block text-sm text-blue-200 mb-2">Từ ngày</label>
+                      <input
+                        type="date"
+                        value={filters.dateFrom}
+                        onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                      />
+                    </div>
+
+                    {/* Date To */}
+                    <div>
+                      <label className="block text-sm text-blue-200 mb-2">Đến ngày</label>
+                      <input
+                        type="date"
+                        value={filters.dateTo}
+                        onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                        className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Filter Actions */}
+                  <div className="mt-4 flex justify-end gap-3">
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        setFilters({
+                          name: '',
+                          department: '',
+                          deviceName: '',
+                          uyQuyen: '',
+                          dateFrom: '',
+                          dateTo: '',
+                        });
+                        setSearchTerm('');
+                      }}
+                      className="px-4 py-2 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
+                    >
+                      Xóa bộ lọc
+                    </motion.button>
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setShowFilters(false)}
+                      className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl"
+                    >
+                      Áp dụng
+                    </motion.button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
 
         {/* Stats Cards */}
@@ -604,6 +850,43 @@ export default function DevicesPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Filter Results Info */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mb-4 flex justify-between items-center text-white/70"
+        >
+          <span>
+            Hiển thị <strong className="text-white">{filteredDevices.length}</strong> / {devices.length} thiết bị
+            {(searchTerm || Object.values(filters).some(v => v !== '')) && (
+              <span className="text-blue-300 ml-2">(đã áp dụng bộ lọc)</span>
+            )}
+          </span>
+          {(searchTerm || Object.values(filters).some(v => v !== '')) && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => {
+                setSearchTerm('');
+                setFilters({
+                  name: '',
+                  department: '',
+                  deviceName: '',
+                  uyQuyen: '',
+                  dateFrom: '',
+                  dateTo: '',
+                });
+              }}
+              className="text-sm text-red-300 hover:text-red-200 flex items-center gap-1"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              Xóa tất cả bộ lọc
+            </motion.button>
+          )}
+        </motion.div>
 
         {/* Devices Table */}
         <motion.div
